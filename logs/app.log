@@ -1,0 +1,130 @@
+{"timestamp":"2026-02-15T13:38:27.516Z","level":"info","message":"Printing order #397 to USB printer: default","source":"printer"}
+{"timestamp":"2026-02-15T13:39:05.884Z","level":"info","message":"Order #397 printed successfully","source":"printer"}
+{"timestamp":"2026-02-15T13:41:55.557Z","level":"info","message":"Printing order #398 to USB printer: default","source":"printer"}
+{"timestamp":"2026-02-15T13:42:03.094Z","level":"info","message":"Order #398 printed successfully","source":"printer"}
+{"timestamp":"2026-02-15T13:43:46.873Z","level":"info","message":"Printing order #399 to USB printer: default","source":"printer"}
+{"timestamp":"2026-02-15T13:43:49.123Z","level":"info","message":"Order #399 printed successfully","source":"printer"}
+{"timestamp":"2026-02-15T13:45:27.916Z","level":"info","message":"Printing order #400 to USB printer: default","source":"printer"}
+{"timestamp":"2026-02-15T13:45:31.147Z","level":"info","message":"Order #400 printed successfully","source":"printer"}
+{"timestamp":"2026-02-15T13:47:34.821Z","level":"info","message":"Printing order #401 to USB printer: default","source":"printer"}
+{"timestamp":"2026-02-15T13:47:36.723Z","level":"error","message":"Print error for order #401: Ошибка печати: success is not defined","source":"printer"}
+{"timestamp":"2026-02-15T13:48:23.349Z","level":"info","message":"Printing order #402 to USB printer: default","source":"printer"}
+{"timestamp":"2026-02-15T13:48:26.573Z","level":"error","message":"Print error for order #402: Ошибка печати: Could not print via Windows API or direct ports. Printer: POSPrinter POS58","source":"printer"}
+{"timestamp":"2026-02-15T13:49:35.782Z","level":"info","message":"Printing order #403 to USB printer: default","source":"printer"}
+{"timestamp":"2026-02-15T13:49:38.458Z","level":"error","message":"Print error for order #403: Ошибка печати: Could not print via Windows API or direct ports. Printer: POSPrinter POS58","source":"printer"}
+{"timestamp":"2026-02-15T13:50:16.238Z","level":"info","message":"Printing order #404 to USB printer: default","source":"printer"}
+{"timestamp":"2026-02-15T13:50:18.833Z","level":"error","message":"Print error for order #404: Ошибка печати: Could not print via Windows API or direct ports. Printer: POSPrinter POS58","source":"printer"}
+{"timestamp":"2026-02-15T13:51:04.335Z","level":"info","message":"Printing order #405 to USB printer: default","source":"printer"}
+{"timestamp":"2026-02-15T13:51:07.247Z","level":"error","message":"Print error for order #405: Ошибка печати: Could not print via Windows API or direct ports. Printer: POSPrinter POS58","source":"printer"}
+{"timestamp":"2026-02-15T13:53:06.594Z","level":"info","message":"Printing order #406 to USB printer: default","source":"printer"}
+{"timestamp":"2026-02-15T13:53:08.291Z","level":"info","message":"Order #406 printed successfully","source":"printer"}
+{"timestamp":"2026-02-15T13:56:06.033Z","level":"info","message":"Printing order #407 to USB printer: default","source":"printer"}
+{"timestamp":"2026-02-15T13:56:08.204Z","level":"info","message":"Order #407 printed successfully","source":"printer"}
+{"timestamp":"2026-02-15T14:01:35.206Z","level":"info","message":"Printing order #408 to USB printer: default","source":"printer"}
+{"timestamp":"2026-02-15T14:01:37.157Z","level":"info","message":"Order #408 printed successfully","source":"printer"}
+{"timestamp":"2026-02-15T14:04:15.872Z","level":"info","message":"Printing order #409 to USB printer: default","source":"printer"}
+{"timestamp":"2026-02-15T14:04:18.542Z","level":"info","message":"Order #409 printed successfully","source":"printer"}
+{"timestamp":"2026-02-15T14:15:38.427Z","level":"info","message":"Printing order #410 to USB printer: default","source":"printer"}
+{"timestamp":"2026-02-15T14:15:41.376Z","level":"info","message":"Order #410 printed successfully","source":"printer"}
+{"timestamp":"2026-02-15T14:20:46.807Z","level":"info","message":"Printing order #411 to USB printer: default","source":"printer"}
+{"timestamp":"2026-02-15T14:20:50.190Z","level":"info","message":"Order #411 printed successfully","source":"printer"}
+{"timestamp":"2026-02-15T14:26:41.643Z","level":"info","message":"Printing order #412 to USB printer: default","source":"printer"}
+{"timestamp":"2026-02-15T14:26:43.459Z","level":"info","message":"Order #412 printed successfully","source":"printer"}
+{"timestamp":"2026-02-15T14:30:24.599Z","level":"info","message":"Printing order #413 to USB printer: default","source":"printer"}
+{"timestamp":"2026-02-15T14:30:26.838Z","level":"info","message":"Order #413 printed successfully","source":"printer"}
+{"timestamp":"2026-02-15T14:39:08.156Z","level":"info","message":"Printing order #414 to USB printer: default","source":"printer"}
+{"timestamp":"2026-02-15T14:39:10.357Z","level":"info","message":"Order #414 printed successfully","source":"printer"}
+{"timestamp":"2026-02-17T19:14:15.180Z","level":"info","message":"Printing order #415 to USB printer: default","source":"printer"}
+{"timestamp":"2026-02-17T19:14:18.120Z","level":"info","message":"Order #415 printed successfully","source":"printer"}
+{"timestamp":"2026-02-17T19:17:26.732Z","level":"info","message":"Printing order #416 to USB printer: default","source":"printer"}
+{"timestamp":"2026-02-17T19:17:28.050Z","level":"info","message":"Order #416 printed successfully","source":"printer"}
+{"timestamp":"2026-02-17T19:20:55.854Z","level":"info","message":"Printing order #417 to USB printer: default","source":"printer"}
+{"timestamp":"2026-02-17T19:20:57.419Z","level":"info","message":"Order #417 printed successfully","source":"printer"}
+{"timestamp":"2026-02-17T19:23:15.050Z","level":"info","message":"Printing order #418 to USB printer: default","source":"printer"}
+{"timestamp":"2026-02-17T19:23:17.118Z","level":"info","message":"Order #418 printed successfully","source":"printer"}
+{"timestamp":"2026-02-17T19:24:25.302Z","level":"info","message":"Printing order #419 to USB printer: default","source":"printer"}
+{"timestamp":"2026-02-17T19:24:27.026Z","level":"info","message":"Order #419 printed successfully","source":"printer"}
+{"timestamp":"2026-02-17T19:27:29.916Z","level":"info","message":"Printing order #420 to USB printer: default","source":"printer"}
+{"timestamp":"2026-02-17T19:27:31.272Z","level":"info","message":"Order #420 printed successfully","source":"printer"}
+{"timestamp":"2026-02-17T19:29:18.638Z","level":"info","message":"Printing order #421 to USB printer: default","source":"printer"}
+{"timestamp":"2026-02-17T19:29:20.432Z","level":"info","message":"Order #421 printed successfully","source":"printer"}
+{"timestamp":"2026-02-17T19:34:04.541Z","level":"info","message":"Printing order #422 to USB printer: POSPrinter POS58","source":"printer"}
+{"timestamp":"2026-02-17T19:34:06.271Z","level":"info","message":"Order #422 printed successfully","source":"printer"}
+{"timestamp":"2026-02-17T19:35:09.187Z","level":"info","message":"Printing order #423 to USB printer: POSPrinter POS58","source":"printer"}
+{"timestamp":"2026-02-17T19:35:10.731Z","level":"info","message":"Order #423 printed successfully","source":"printer"}
+{"timestamp":"2026-02-17T19:36:22.091Z","level":"info","message":"Printing order #424 to USB printer: POSPrinter POS58","source":"printer"}
+{"timestamp":"2026-02-17T19:36:23.311Z","level":"info","message":"Order #424 printed successfully","source":"printer"}
+{"timestamp":"2026-02-17T19:38:19.644Z","level":"info","message":"Printing order #425 to USB printer: POSPrinter POS58","source":"printer"}
+{"timestamp":"2026-02-17T19:38:20.844Z","level":"info","message":"Order #425 printed successfully","source":"printer"}
+{"timestamp":"2026-02-18T18:52:46.813Z","level":"info","message":"Printing order #426 to USB printer: POSPrinter POS58","source":"printer"}
+{"timestamp":"2026-02-18T18:52:50.500Z","level":"info","message":"Order #426 printed successfully","source":"printer"}
+{"timestamp":"2026-02-18T18:54:44.580Z","level":"info","message":"Printing order #427 to USB printer: POSPrinter POS58","source":"printer"}
+{"timestamp":"2026-02-18T18:54:46.680Z","level":"info","message":"Order #427 printed successfully","source":"printer"}
+{"timestamp":"2026-02-18T18:59:51.295Z","level":"info","message":"Printing order #428 to USB printer: POSPrinter POS58","source":"printer"}
+{"timestamp":"2026-02-18T18:59:54.966Z","level":"info","message":"Order #428 printed successfully","source":"printer"}
+{"timestamp":"2026-02-18T19:00:41.121Z","level":"info","message":"Printing order #429 to USB printer: POSPrinter POS58","source":"printer"}
+{"timestamp":"2026-02-18T19:00:43.309Z","level":"info","message":"Order #429 printed successfully","source":"printer"}
+{"timestamp":"2026-02-18T19:01:49.735Z","level":"info","message":"Printing order #430 to USB printer: POSPrinter POS58","source":"printer"}
+{"timestamp":"2026-02-18T19:01:52.046Z","level":"info","message":"Order #430 printed successfully","source":"printer"}
+{"timestamp":"2026-02-18T19:03:59.850Z","level":"info","message":"Printing order #431 to USB printer: POSPrinter POS58","source":"printer"}
+{"timestamp":"2026-02-18T19:04:07.057Z","level":"info","message":"Order #431 printed successfully","source":"printer"}
+{"timestamp":"2026-02-18T19:06:00.789Z","level":"info","message":"Printing order #432 to USB printer: POSPrinter POS58","source":"printer"}
+{"timestamp":"2026-02-18T19:06:02.382Z","level":"info","message":"Order #432 printed successfully","source":"printer"}
+{"timestamp":"2026-02-18T19:15:58.176Z","level":"info","message":"Printing order #433 to USB printer: POSPrinter POS58","source":"printer"}
+{"timestamp":"2026-02-18T19:15:59.354Z","level":"error","message":"Print error for order #433: Ошибка печати: Command failed: powershell -Command \"Get-Printer -Name 'POSPrinter POS58' -ErrorAction SilentlyContinue\"\n","source":"printer"}
+{"timestamp":"2026-02-18T19:17:39.970Z","level":"info","message":"Printing order #434 to USB printer: XP-58","source":"printer"}
+{"timestamp":"2026-02-18T19:17:41.448Z","level":"info","message":"Order #434 printed successfully","source":"printer"}
+{"timestamp":"2026-02-18T19:18:57.129Z","level":"info","message":"Printing order #435 to USB printer: XP-58","source":"printer"}
+{"timestamp":"2026-02-18T19:18:58.495Z","level":"info","message":"Order #435 printed successfully","source":"printer"}
+{"timestamp":"2026-02-18T19:20:25.122Z","level":"info","message":"Printing order #436 to USB printer: XP-58","source":"printer"}
+{"timestamp":"2026-02-18T19:20:26.534Z","level":"info","message":"Order #436 printed successfully","source":"printer"}
+{"timestamp":"2026-02-18T19:22:09.660Z","level":"info","message":"Printing order #437 to USB printer: XP-58","source":"printer"}
+{"timestamp":"2026-02-18T19:22:11.048Z","level":"info","message":"Order #437 printed successfully","source":"printer"}
+{"timestamp":"2026-02-18T19:35:04.885Z","level":"info","message":"Printing order #439 to USB printer: XP-58","source":"printer"}
+{"timestamp":"2026-02-18T19:35:06.419Z","level":"info","message":"Order #439 printed successfully","source":"printer"}
+{"timestamp":"2026-02-18T19:36:02.488Z","level":"info","message":"Printing order #440 to USB printer: XP-58","source":"printer"}
+{"timestamp":"2026-02-18T19:36:03.619Z","level":"info","message":"Order #440 printed successfully","source":"printer"}
+{"timestamp":"2026-02-18T19:38:47.133Z","level":"info","message":"Printing order #441 to USB printer: XP-58","source":"printer"}
+{"timestamp":"2026-02-18T19:38:49.285Z","level":"info","message":"Order #441 printed successfully","source":"printer"}
+{"timestamp":"2026-02-18T19:41:11.566Z","level":"info","message":"Printing order #442 to USB printer: XP-58","source":"printer"}
+{"timestamp":"2026-02-18T19:41:13.968Z","level":"info","message":"Order #442 printed successfully","source":"printer"}
+{"timestamp":"2026-02-18T19:44:03.342Z","level":"info","message":"Printing order #443 to USB printer: XP-58","source":"printer"}
+{"timestamp":"2026-02-18T19:44:05.028Z","level":"info","message":"Order #443 printed successfully","source":"printer"}
+{"timestamp":"2026-02-18T19:46:35.145Z","level":"info","message":"Printing order #444 to USB printer: XP-58","source":"printer"}
+{"timestamp":"2026-02-18T19:46:37.569Z","level":"info","message":"Order #444 printed successfully","source":"printer"}
+{"timestamp":"2026-02-18T19:53:57.028Z","level":"info","message":"Printing order #445 to USB printer: XP-58","source":"printer"}
+{"timestamp":"2026-02-18T19:53:59.991Z","level":"info","message":"Order #445 printed successfully","source":"printer"}
+{"timestamp":"2026-02-18T19:55:21.911Z","level":"info","message":"Printing order #446 to USB printer: XP-58","source":"printer"}
+{"timestamp":"2026-02-18T19:55:23.512Z","level":"info","message":"Order #446 printed successfully","source":"printer"}
+{"timestamp":"2026-02-18T19:56:22.173Z","level":"info","message":"Printing order #447 to USB printer: XP-58","source":"printer"}
+{"timestamp":"2026-02-18T19:56:23.708Z","level":"info","message":"Order #447 printed successfully","source":"printer"}
+{"timestamp":"2026-02-18T19:57:09.298Z","level":"info","message":"Printing order #448 to USB printer: XP-58","source":"printer"}
+{"timestamp":"2026-02-18T19:57:10.684Z","level":"info","message":"Order #448 printed successfully","source":"printer"}
+{"timestamp":"2026-02-18T19:58:15.085Z","level":"info","message":"Printing order #449 to USB printer: XP-58","source":"printer"}
+{"timestamp":"2026-02-18T19:58:16.702Z","level":"info","message":"Order #449 printed successfully","source":"printer"}
+{"timestamp":"2026-02-18T20:00:32.828Z","level":"info","message":"Printing order #450 to USB printer: XP-58","source":"printer"}
+{"timestamp":"2026-02-18T20:00:34.969Z","level":"info","message":"Order #450 printed successfully","source":"printer"}
+{"timestamp":"2026-02-18T20:02:05.154Z","level":"info","message":"Printing order #451 to USB printer: XP-58","source":"printer"}
+{"timestamp":"2026-02-18T20:02:06.968Z","level":"info","message":"Order #451 printed successfully","source":"printer"}
+{"timestamp":"2026-02-18T20:03:56.529Z","level":"info","message":"Printing order #452 to USB printer: XP-58","source":"printer"}
+{"timestamp":"2026-02-18T20:04:01.699Z","level":"info","message":"Order #452 printed successfully","source":"printer"}
+{"timestamp":"2026-02-18T20:06:04.718Z","level":"info","message":"Printing order #453 to USB printer: XP-58","source":"printer"}
+{"timestamp":"2026-02-18T20:06:08.010Z","level":"info","message":"Order #453 printed successfully","source":"printer"}
+{"timestamp":"2026-02-18T20:11:03.674Z","level":"info","message":"Printing order #454 to USB printer: XP-58","source":"printer"}
+{"timestamp":"2026-02-18T20:11:09.080Z","level":"info","message":"Order #454 printed successfully","source":"printer"}
+{"timestamp":"2026-02-18T20:13:07.566Z","level":"info","message":"Printing order #455 to USB printer: XP-58","source":"printer"}
+{"timestamp":"2026-02-18T20:13:09.456Z","level":"info","message":"Order #455 printed successfully","source":"printer"}
+{"timestamp":"2026-02-18T20:14:50.782Z","level":"info","message":"Printing order #456 to USB printer: XP-58","source":"printer"}
+{"timestamp":"2026-02-18T20:14:56.505Z","level":"info","message":"Order #456 printed successfully","source":"printer"}
+{"timestamp":"2026-02-18T20:15:56.290Z","level":"info","message":"Printing order #457 to USB printer: XP-58","source":"printer"}
+{"timestamp":"2026-02-18T20:15:57.689Z","level":"info","message":"Order #457 printed successfully","source":"printer"}
+{"timestamp":"2026-02-18T20:16:45.234Z","level":"info","message":"Printing order #458 to USB printer: XP-58","source":"printer"}
+{"timestamp":"2026-02-18T20:16:47.008Z","level":"info","message":"Order #458 printed successfully","source":"printer"}
+{"timestamp":"2026-02-18T20:18:12.824Z","level":"info","message":"Printing order #459 to USB printer: XP-58","source":"printer"}
+{"timestamp":"2026-02-18T20:18:15.347Z","level":"info","message":"Order #459 printed successfully","source":"printer"}
+{"timestamp":"2026-02-18T20:20:31.493Z","level":"info","message":"Printing order #460 to USB printer: XP-58","source":"printer"}
+{"timestamp":"2026-02-18T20:20:33.308Z","level":"info","message":"Order #460 printed successfully","source":"printer"}
+{"timestamp":"2026-02-20T11:55:54.412Z","level":"info","message":"Printing order #461 to USB printer: XP-58","source":"printer"}
+{"timestamp":"2026-02-20T11:55:57.193Z","level":"info","message":"Order #461 printed successfully","source":"printer"}
+{"timestamp":"2026-02-20T11:58:30.804Z","level":"info","message":"Printing order #462 to USB printer: XP-58","source":"printer"}
+{"timestamp":"2026-02-20T11:58:32.872Z","level":"info","message":"Order #462 printed successfully","source":"printer"}

@@ -1,0 +1,12 @@
+{
+  "/api/orders/route": "app/api/orders/route.js",
+  "/api/events/route": "app/api/events/route.js",
+  "/api/orders/version/route": "app/api/orders/version/route.js",
+  "/api/happy-hours/route": "app/api/happy-hours/route.js",
+  "/api/menu/route": "app/api/menu/route.js",
+  "/api/orders/cleanup/route": "app/api/orders/cleanup/route.js",
+  "/api/popular/route": "app/api/popular/route.js",
+  "/api/settings/route": "app/api/settings/route.js",
+  "/page": "app/page.js",
+  "/order-display/page": "app/order-display/page.js"
+}

@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meidos POS - Офлайн</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+            text-align: center;
+        }
+        
+        .offline-container {
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        .logo {
+            width: 120px;
+            height: 120px;
+            background: #f97316;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 2rem;
+            font-size: 3rem;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            color: #f97316;
+            margin-bottom: 1rem;
+            font-weight: bold;
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            color: #cccccc;
+            margin-bottom: 2rem;
+            line-height: 1.5;
+        }
+        
+        .status {
+            background: rgba(249, 115, 22, 0.1);
+            border: 2px solid #f97316;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .status-title {
+            font-size: 1.1rem;
+            color: #f97316;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+        
+        .status-text {
+            color: #cccccc;
+            line-height: 1.4;
+        }
+        
+        .actions {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .btn {
+            background: #f97316;
+            color: #000000;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn:hover {
+            background: #ea580c;
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary {
+            background: transparent;
+            color: #f97316;
+            border: 2px solid #f97316;
+        }
+        
+        .btn-secondary:hover {
+            background: #f97316;
+            color: #000000;
+        }
+        
+        .features {
+            margin-top: 3rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            text-align: left;
+        }
+        
+        .feature {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1.5rem;
+            border-radius: 8px;
+            border-left: 4px solid #f97316;
+        }
+        
+        .feature-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .feature-title {
+            color: #f97316;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+        
+        .feature-text {
+            color: #cccccc;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        
+        .connection-status {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        
+        .offline {
+            background: #dc2626;
+            color: white;
+        }
+        
+        .online {
+            background: #16a34a;
+            color: white;
+        }
+        
+        @media (max-width: 768px) {
+            h1 { font-size: 2rem; }
+            .subtitle { font-size: 1rem; }
+            .features { grid-template-columns: 1fr; }
+            .actions { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="connection-status offline" id="connectionStatus">
+        📡 Офлайн
+    </div>
+    
+    <div class="offline-container">
+        <div class="logo">
+            🍽️
+        </div>
+        
+        <h1>Meidos POS</h1>
+        <p class="subtitle">
+            Система працює в офлайн режимі.<br>
+            Деякі функції можуть бути недоступні.
+        </p>
+        
+        <div class="status">
+            <div class="status-title">📡 Статус підключення</div>
+            <div class="status-text">
+                Немає підключення до інтернету. Система автоматично синхронізується при відновленні зв'язку.
+            </div>
+        </div>
+        
+        <div class="actions">
+            <button class="btn" onclick="tryReconnect()">
+                🔄 Спробувати підключитися
+            </button>
+            <button class="btn btn-secondary" onclick="goHome()">
+                🏠 Повернутися до POS
+            </button>
+        </div>
+        
+        <div class="features">
+            <div class="feature">
+                <div class="feature-icon">💾</div>
+                <div class="feature-title">Локальне зберігання</div>
+                <div class="feature-text">
+                    Ваші дані зберігаються локально і будуть синхронізовані при підключенні
+                </div>
+            </div>
+            
+            <div class="feature">
+                <div class="feature-icon">⚡</div>
+                <div class="feature-title">Швидка робота</div>
+                <div class="feature-text">
+                    Основні функції POS системи працюють без інтернету
+                </div>
+            </div>
+            
+            <div class="feature">
+                <div class="feature-icon">🔄</div>
+                <div class="feature-title">Автосинхронізація</div>
+                <div class="feature-text">
+                    Дані автоматично синхронізуються при відновленні підключення
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Проверка подключения
+        function updateConnectionStatus() {
+            const status = document.getElementById('connectionStatus');
+            if (navigator.onLine) {
+                status.textContent = '🌐 Онлайн';
+                status.className = 'connection-status online';
+            } else {
+                status.textContent = '📡 Офлайн';
+                status.className = 'connection-status offline';
+            }
+        }
+        
+        // Попытка переподключения
+        function tryReconnect() {
+            const btn = event.target;
+            btn.textContent = '🔄 Підключення...';
+            btn.disabled = true;
+            
+            // Проверяем подключение
+            fetch('/', { method: 'HEAD', cache: 'no-cache' })
+                .then(() => {
+                    btn.textContent = '✅ Підключено!';
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 1000);
+                })
+                .catch(() => {
+                    btn.textContent = '❌ Немає підключення';
+                    setTimeout(() => {
+                        btn.textContent = '🔄 Спробувати підключитися';
+                        btn.disabled = false;
+                    }, 2000);
+                });
+        }
+        
+        // Переход на главную
+        function goHome() {
+            window.location.href = '/';
+        }
+        
+        // Обновление статуса при изменении подключения
+        window.addEventListener('online', updateConnectionStatus);
+        window.addEventListener('offline', updateConnectionStatus);
+        
+        // Автоматическая проверка подключения каждые 30 секунд
+        setInterval(() => {
+            if (navigator.onLine) {
+                fetch('/', { method: 'HEAD', cache: 'no-cache' })
+                    .then(() => {
+                        // Если подключение восстановлено, перенаправляем на главную
+                        window.location.href = '/';
+                    })
+                    .catch(() => {
+                        // Подключение все еще недоступно
+                    });
+            }
+        }, 30000);
+        
+        // Инициализация
+        updateConnectionStatus();
+    </script>
+</body>
+</html>

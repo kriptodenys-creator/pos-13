@@ -1,0 +1,979 @@
+import { getDatabase } from "@/lib/database"
+
+// Prepared statements cache
+const preparedStatements = new Map<string, any>()
+
+function getPreparedStatement(db: any, sql: string) {
+  if (!preparedStatements.has(sql)) {
+    preparedStatements.set(sql, db.prepare(sql))
+  }
+  return preparedStatements.get(sql)
+}
+
+async function ensureDatabase() {
+  try {
+    return getDatabase()
+  } catch (error) {
+    console.error("[API] Database connection failed:", error)
+    throw error
+  }
+}
+
+// Таблица опций модификаторов (группы модификаторов имеют несколько опций)
+function ensureModifierOptionsTable(db: any) {
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS modifier_options (
+        id TEXT PRIMARY KEY,
+        modifier_id TEXT NOT NULL,
+        name_lt TEXT NOT NULL,
+        name_uk TEXT NOT NULL,
+        price REAL DEFAULT 0,
+        FOREIGN KEY (modifier_id) REFERENCES modifiers(id) ON DELETE CASCADE
+      );
+    `)
+  } catch (e) {
+    console.error('[API] Failed to ensure modifier_options table:', e)
+  }
+}
+// Гарантируем существование таблицы категорий (для управляемого справочника)
+function ensureCategoriesTable(db: any) {
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS categories (
+        id TEXT PRIMARY KEY,
+        name_lt TEXT NOT NULL,
+        name_uk TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `)
+  } catch (e) {
+    console.error('[API] Failed to ensure categories table:', e)
+  }
+}
+
+// Гарантируем существование связующей таблицы (на случай старых БД)
+function ensureMenuItemModifiersTable(db: any) {
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS menu_item_modifiers (
+        menu_item_id TEXT NOT NULL,
+        modifier_id TEXT NOT NULL,
+        PRIMARY KEY (menu_item_id, modifier_id),
+        FOREIGN KEY (menu_item_id) REFERENCES menu_items(id) ON DELETE CASCADE,
+        FOREIGN KEY (modifier_id) REFERENCES modifiers(id) ON DELETE CASCADE
+      );
+    `)
+  } catch (e) {
+    console.error('[API] Failed to ensure menu_item_modifiers table:', e)
+  }
+}
+
+// Note: we ensure categories table inside handlers when DB is initialized
+
+export async function GET(request: Request) {
+  const db = await ensureDatabase()
+  
+  if (!db) {
+    // БД недоступна — не возвращаем демо-меню, чтобы не путать POS
+    return new Response(JSON.stringify({ menu: [], error: 'Database not available' }), {
+      status: 503,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+  }
+
+  try {
+    const url = new URL(request.url)
+    const includeAll = url.searchParams.get('includeAll') === '1'
+    const fallbackAll = url.searchParams.get('fallbackAllModifiers') === '1'
+    const listModifiers = url.searchParams.get('listModifiers') === '1'
+    const listCategories = url.searchParams.get('listCategories') === '1'
+    // На всякий случай создадим связующие и справочники
+    ensureMenuItemModifiersTable(db)
+    ensureCategoriesTable(db)
+    ensureModifierOptionsTable(db)
+    // Get menu items with their modifiers; by default только доступные, с includeAll=1 — все
+    const baseSelect = `
+        SELECT 
+          mi.id,
+          mi.name_lt,
+          mi.name_uk,
+          mi.price,
+          mi.category,
+          mi.image,
+          COALESCE(mi.available, 1) as available
+        FROM menu_items mi
+      `
+    const where = includeAll ? '' : 'WHERE COALESCE(mi.available, 1) = 1'
+    const order = 'ORDER BY mi.category, mi.name_uk'
+    
+    // Use prepared statement for better performance
+    const menuItemsQuery = [baseSelect, where, order].filter(Boolean).join('\n')
+    const menuItemsStmt = getPreparedStatement(db, menuItemsQuery)
+    const menuItems = menuItemsStmt.all()
+
+    // Get modifiers for each menu item
+    const menuWithModifiers = await Promise.all(menuItems.map(async (item: any) => {
+      try {
+        // Use prepared statement for modifiers query
+        const modifiersStmt = getPreparedStatement(db, `
+          SELECT 
+            m.id,
+            m.name_lt,
+            m.name_uk,
+            m.price,
+            m.type,
+            m.required
+          FROM modifiers m
+          JOIN menu_item_modifiers mim ON m.id = mim.modifier_id
+          WHERE mim.menu_item_id = ?
+        `)
+        const modifiers = modifiersStmt.all(item.id)
+
+        // Подтянем опции для каждой группы модификаторов
+        const withOptions = modifiers.map((m: any) => {
+          let options: any[] = []
+          try {
+            const optionsStmt = getPreparedStatement(db, `
+              SELECT id, name_lt, name_uk, price, order_position FROM modifier_options WHERE modifier_id = ? ORDER BY order_position ASC, name_uk
+            `)
+            options = optionsStmt.all(m.id).map((opt: any) => ({ ...opt, order: opt.order_position }))
+          } catch {}
+          return {
+            ...m,
+            options,
+          }
+        })
+
+        let finalModifiers = withOptions
+        // Убираем fallback логику - модификаторы должны показываться только там, где они привязаны
+        // Если у блюда нет модификаторов, то их и не должно быть
+
+        return {
+          ...item,
+          modifiers: (finalModifiers || []).map((m: any) => ({
+            ...m,
+            name: { lt: m.name_lt, uk: m.name_uk },
+            options: Array.isArray(m.options) ? m.options.map((o: any) => ({
+              id: o.id,
+              name_lt: o.name_lt,
+              name_uk: o.name_uk,
+              price: Number(o.price) || 0,
+              name: { lt: o.name_lt, uk: o.name_uk },
+            })) : [],
+          })),
+          name: { lt: item.name_lt, uk: item.name_uk },
+        }
+      } catch (error) {
+        console.error(`[API] Error getting modifiers for menu item ${item.id}:`, error)
+        return {
+          ...item,
+          modifiers: [],
+          name: { lt: item.name_lt, uk: item.name_uk },
+        }
+      }
+    }))
+
+    // При необходимости также вернем полный список модификаторов
+    let allMods: any[] | undefined = undefined
+    if (listModifiers) {
+      try {
+        // Проверяем, есть ли колонка category_id
+        const modifierColumns = db.prepare("PRAGMA table_info(modifiers)").all() as any[]
+        const hasCategoryId = modifierColumns.some((c) => String(c.name) === 'category_id')
+        
+        const selectFields = hasCategoryId 
+          ? 'id, name_lt, name_uk, group_name, category_id, price, type, required'
+          : 'id, name_lt, name_uk, group_name, price, type, required'
+        
+        const modifiersStmt = getPreparedStatement(db, `SELECT ${selectFields} FROM modifiers ORDER BY name_uk`)
+        const rows = modifiersStmt.all()
+        allMods = rows.map((m: any) => {
+          let options: any[] = []
+          try {
+            const optionsStmt = getPreparedStatement(db, `SELECT id, name_lt, name_uk, price, order_position FROM modifier_options WHERE modifier_id = ? ORDER BY order_position ASC, name_uk`)
+            options = optionsStmt.all(m.id).map((opt: any) => ({ ...opt, order: opt.order_position }))
+          } catch {}
+          return { ...m, options }
+        })
+      } catch (e) {
+        console.warn('[API] Failed to list modifiers:', e)
+        allMods = []
+      }
+    }
+
+    // И список категорий
+    let categories: any[] | undefined = undefined
+    if (listCategories) {
+      try {
+        const categoriesStmt = getPreparedStatement(db, `SELECT id, name_lt, name_uk, order_index FROM categories ORDER BY order_index ASC, name_uk ASC`)
+        categories = categoriesStmt.all()
+      } catch (e) {
+        console.warn('[API] Failed to list categories:', e)
+        categories = []
+      }
+    }
+
+    return new Response(
+      JSON.stringify({ 
+        success: true,
+        menu: menuWithModifiers, 
+        items: menuWithModifiers, // Для совместимости с тестами
+        count: menuWithModifiers.length,
+        ...(listModifiers ? { modifiers: allMods } : {}), 
+        ...(listCategories ? { categories } : {}) 
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600'
+        },
+      }
+    )
+  } catch (error) {
+    console.error('[API] Error in GET /api/menu:', error)
+    // Ошибка при запросе — не подменяем меню демо-данными
+    return new Response(JSON.stringify({ error: 'Failed to load menu', menu: [] }), {
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json()
+    const db = await ensureDatabase()
+    if (!db) {
+      return new Response(JSON.stringify({ success: false, error: 'Database not available' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    // На всякий случай создадим таблицы, прежде чем использовать их в любых ветках
+    ensureMenuItemModifiersTable(db)
+    ensureCategoriesTable(db)
+
+    // Управление категориями
+    if (body && body.action === 'createCategory') {
+      try {
+        const id = (body.id && String(body.id)) || `cat_${Date.now()}_${Math.floor(Math.random() * 10000)}`
+        const name_lt = String(body.name_lt || body.name || '').trim()
+        const name_uk = String(body.name_uk || body.name || '').trim()
+        if (!name_lt || !name_uk) {
+          return new Response(JSON.stringify({ success: false, error: 'Missing category name' }), { status: 400, headers: { 'Content-Type': 'application/json' } })
+        }
+        db.prepare(`INSERT INTO categories (id, name_lt, name_uk) VALUES (?, ?, ?)`).run(id, name_lt, name_uk)
+        return new Response(JSON.stringify({ success: true, id }), { status: 201, headers: { 'Content-Type': 'application/json' } })
+      } catch (e: any) {
+        console.error('[API] createCategory failed:', e)
+        return new Response(JSON.stringify({ success: false, error: e?.message || 'Failed to create category' }), { status: 500, headers: { 'Content-Type': 'application/json' } })
+      }
+    }
+
+    if (body && body.action === 'renameCategory') {
+      try {
+        const id = String(body.id || '')
+        const name_lt = String(body.name_lt || body.name || '').trim()
+        const name_uk = String(body.name_uk || body.name || '').trim()
+        if (!id || !name_lt || !name_uk) {
+          return new Response(JSON.stringify({ success: false, error: 'Invalid category payload' }), { status: 400, headers: { 'Content-Type': 'application/json' } })
+        }
+        const res = db.prepare(`UPDATE categories SET name_lt = ?, name_uk = ? WHERE id = ?`).run(name_lt, name_uk, id)
+        if (res.changes === 0) {
+          return new Response(JSON.stringify({ success: false, error: 'Category not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } })
+        }
+        return new Response(JSON.stringify({ success: true, id }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      } catch (e: any) {
+        console.error('[API] renameCategory failed:', e)
+        return new Response(JSON.stringify({ success: false, error: e?.message || 'Failed to rename category' }), { status: 500, headers: { 'Content-Type': 'application/json' } })
+      }
+    }
+
+    if (body && body.action === 'deleteCategory') {
+      try {
+        const id = String(body.id || '')
+        if (!id) {
+          return new Response(JSON.stringify({ success: false, error: 'Missing category id' }), { status: 400, headers: { 'Content-Type': 'application/json' } })
+        }
+        const tx = db.transaction(() => {
+          // Обнулим поле category у блюд этой категории (по ID)
+          db.prepare(`UPDATE menu_items SET category = '' WHERE category = ?`).run(id)
+          db.prepare(`DELETE FROM categories WHERE id = ?`).run(id)
+        })
+        tx()
+        return new Response(JSON.stringify({ success: true, id }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      } catch (e: any) {
+        console.error('[API] deleteCategory failed:', e)
+        return new Response(JSON.stringify({ success: false, error: e?.message || 'Failed to delete category' }), { status: 500, headers: { 'Content-Type': 'application/json' } })
+      }
+    }
+
+    // Полный сброс меню (удаление блюд, модификаторов и связей)
+    if (body && body.action === 'resetMenu') {
+      try {
+        const tx = db.transaction(() => {
+          // Безопасно удаляем данные, если таблицы существуют
+          try { db.prepare('DELETE FROM menu_item_modifiers').run() } catch {}
+          try { db.prepare('DELETE FROM modifiers').run() } catch {}
+          try { db.prepare('DELETE FROM menu_items').run() } catch {}
+        })
+        tx()
+        return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      } catch (e: any) {
+        console.error('[API] resetMenu failed:', e)
+        return new Response(JSON.stringify({ success: false, error: e?.message || 'Failed to reset menu' }), { status: 500, headers: { 'Content-Type': 'application/json' } })
+      }
+    }
+
+    // Обновление доступности блюда: { action: 'availability', id, available }
+    if (body && body.action === 'availability') {
+      try {
+        const id = body.id as string
+        const available = Boolean(body.available)
+        if (!id || typeof id !== 'string') {
+          return new Response(JSON.stringify({ success: false, error: 'Missing id' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        }
+        const stmt = db.prepare(`UPDATE menu_items SET available = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
+        const res = stmt.run(available ? 1 : 0, id)
+        if (res.changes === 0) {
+          return new Response(JSON.stringify({ success: false, error: 'Menu item not found' }), {
+            status: 404,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        }
+        return new Response(JSON.stringify({ success: true, id, available }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      } catch (e) {
+        console.error('[API] Ошибка обновления доступности:', e)
+        return new Response(JSON.stringify({ success: false, error: 'Failed to update availability' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+    }
+
+    // Удаление модификатора: { action: 'deleteModifier', id }
+    if (body && body.action === 'deleteModifier') {
+      try {
+        const id = body.id as string
+        console.log('[API] deleteModifier called with id:', id)
+        
+        if (!id || typeof id !== 'string') {
+          console.log('[API] deleteModifier: Missing or invalid modifier id')
+          return new Response(JSON.stringify({ success: false, error: 'Missing modifier id' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        }
+
+        // Проверяем, существует ли модификатор
+        const existingModifier = db.prepare('SELECT id FROM modifiers WHERE id = ?').get(id)
+        if (!existingModifier) {
+          console.log('[API] deleteModifier: Modifier not found:', id)
+          return new Response(JSON.stringify({ success: false, error: 'Modifier not found' }), {
+            status: 404,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        }
+
+        const tx = db.transaction(() => {
+          // Сначала удаляем опции модификатора
+          const deleteOptions = db.prepare('DELETE FROM modifier_options WHERE modifier_id = ?')
+          const optionsResult = deleteOptions.run(id)
+          console.log('[API] Deleted modifier options:', optionsResult.changes)
+          
+          // Затем удаляем связи с товарами
+          const deleteLinks = db.prepare('DELETE FROM menu_item_modifiers WHERE modifier_id = ?')
+          const linksResult = deleteLinks.run(id)
+          console.log('[API] Deleted menu item links:', linksResult.changes)
+          
+          // Проверяем, есть ли ссылки в заказах
+          const orderItemsCheck = db.prepare(`
+            SELECT COUNT(*) as count FROM order_item_modifiers WHERE modifier_id = ?
+          `).get(id) as { count: number }
+          
+          if (orderItemsCheck && orderItemsCheck.count > 0) {
+            console.log('[API] Found order references, deleting them first')
+            const deleteOrderRefs = db.prepare('DELETE FROM order_item_modifiers WHERE modifier_id = ?')
+            const orderRefsResult = deleteOrderRefs.run(id)
+            console.log('[API] Deleted order references:', orderRefsResult.changes)
+          }
+          
+          // Наконец удаляем сам модификатор
+          const deleteModifier = db.prepare('DELETE FROM modifiers WHERE id = ?')
+          const modifierResult = deleteModifier.run(id)
+          console.log('[API] Deleted modifier:', modifierResult.changes)
+          
+          console.log('[API] deleteModifier results:', {
+            options: optionsResult.changes,
+            links: linksResult.changes,
+            orderRefs: orderItemsCheck?.count || 0,
+            modifier: modifierResult.changes
+          })
+        })
+        tx()
+
+        console.log('[API] deleteModifier completed successfully for id:', id)
+        return new Response(JSON.stringify({ success: true, id }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      } catch (e: any) {
+        console.error('[API] deleteModifier failed:', e)
+        let errorMessage = 'Failed to delete modifier'
+        
+        if (e?.message && e.message.includes('FOREIGN KEY constraint failed')) {
+          errorMessage = 'Cannot delete modifier: it is still referenced by existing orders or menu items'
+        } else if (e?.message) {
+          errorMessage = e.message
+        }
+        
+        return new Response(JSON.stringify({ success: false, error: errorMessage }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+    }
+
+    // Fallback: поддержка удаления через POST { action: 'delete', id }
+    if (body && body.action === 'delete') {
+      try {
+        const id = body.id as string
+        if (!id || typeof id !== 'string') {
+          return new Response(JSON.stringify({ success: false, error: 'Missing id' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        }
+
+        const getItem = db.prepare('SELECT id FROM menu_items WHERE id = ?')
+        const item = getItem.get(id)
+        if (!item) {
+          return new Response(JSON.stringify({ success: false, error: 'Menu item not found' }), {
+            status: 404,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        }
+
+        const countRef = db.prepare('SELECT COUNT(1) as cnt FROM order_items WHERE menu_item_id = ?').get(id) as { cnt: number }
+        if (countRef && countRef.cnt > 0) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Cannot delete: item is referenced by existing orders' }),
+            { status: 409, headers: { 'Content-Type': 'application/json' } }
+          )
+        }
+
+        const tx = db.transaction(() => {
+          db.prepare('DELETE FROM menu_item_modifiers WHERE menu_item_id = ?').run(id)
+          db.prepare('DELETE FROM menu_items WHERE id = ?').run(id)
+        })
+        tx()
+
+        return new Response(JSON.stringify({ success: true, id }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      } catch (e: any) {
+        console.error('[API] POST delete fallback failed:', e)
+        return new Response(JSON.stringify({ success: false, error: e?.message || 'Failed to delete menu item' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+    }
+
+    // Вариант 1: пакетная загрузка всего меню: { menu: [...] }
+    if (body && Array.isArray(body.menu)) {
+      const menu = body.menu
+      const transaction = db.transaction(() => {
+        // Убедимся, что связующая таблица есть
+        ensureMenuItemModifiersTable(db)
+        db.prepare('DELETE FROM menu_item_modifiers').run()
+        db.prepare('DELETE FROM menu_items').run()
+        db.prepare('DELETE FROM modifiers').run()
+
+        const insertMenuItem = db.prepare(`
+          INSERT INTO menu_items (id, name_lt, name_uk, price, category, image)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `)
+        const insertModifier = db.prepare(`
+          INSERT OR IGNORE INTO modifiers (id, name_lt, name_uk, price, type, required)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `)
+        const linkModifier = db.prepare(`
+          INSERT INTO menu_item_modifiers (menu_item_id, modifier_id)
+          VALUES (?, ?)
+        `)
+
+        for (const item of menu) {
+          insertMenuItem.run(
+            item.id,
+            item.name?.lt || item.name_lt || item.name,
+            item.name?.uk || item.name_uk || item.name,
+            Number(item.price) || 0,
+            item.category,
+            item.image || null,
+          )
+
+          if (Array.isArray(item.modifiers)) {
+            for (const modifier of item.modifiers) {
+              insertModifier.run(
+                modifier.id,
+                modifier.name?.lt || modifier.name_lt || modifier.name,
+                modifier.name?.uk || modifier.name_uk || modifier.name,
+                Number(modifier.price) || 0,
+                modifier.type,
+                modifier.required ? 1 : 0,
+              )
+              linkModifier.run(item.id, modifier.id)
+            }
+          }
+        }
+      })
+
+      transaction()
+      return new Response(JSON.stringify({ success: true, count: body.menu.length }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    // Создание товара: { action: 'createMenuItem', ... }
+    if (body && body.action === 'createMenuItem') {
+      try {
+        const { id, name, name_lt, name_uk, price, category, description, image, available, modifiers, modifierIds } = body
+        const newId = id || `item_${Date.now()}_${Math.floor(Math.random() * 10000)}`
+        
+        const tx = db.transaction(() => {
+          // Создаем товар
+          const insertItem = db.prepare(`
+            INSERT INTO menu_items (id, name_lt, name_uk, price, category, image, description, available)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          `)
+          
+          insertItem.run(
+            newId,
+            name_lt || name || '',
+            name_uk || name || '',
+            parseFloat(price || '0') || 0,
+            category || '',
+            image || '',
+            description || '',
+            available ? 1 : 0
+          )
+          
+          // Связываем с модификаторами
+          if (Array.isArray(modifierIds) && modifierIds.length > 0) {
+            const linkModifier = db.prepare(`
+              INSERT OR IGNORE INTO menu_item_modifiers (menu_item_id, modifier_id)
+              VALUES (?, ?)
+            `)
+            for (const modifierId of modifierIds) {
+              if (typeof modifierId === 'string' && modifierId.trim()) {
+                linkModifier.run(newId, modifierId)
+              }
+            }
+          }
+        })
+        
+        tx()
+        
+        return new Response(JSON.stringify({ success: true, id: newId }), {
+          status: 201,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      } catch (e: any) {
+        console.error('[API] createMenuItem failed:', e)
+        return new Response(JSON.stringify({ success: false, error: e?.message || 'Failed to create menu item' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      }
+    }
+
+    // Обновление товара: { action: 'updateMenuItem', ... }
+    if (body && body.action === 'updateMenuItem') {
+      try {
+        const { id, name, name_lt, name_uk, price, category, description, image, available, modifierIds } = body
+        
+        const tx = db.transaction(() => {
+          // Обновляем товар
+          const updateItem = db.prepare(`
+            UPDATE menu_items 
+            SET name_lt = ?, name_uk = ?, price = ?, category = ?, image = ?, description = ?, available = ?
+            WHERE id = ?
+          `)
+          
+          const result = updateItem.run(
+            String(name_lt || name || ''),
+            String(name_uk || name || ''),
+            Number(parseFloat(String(price || '0')) || 0),
+            String(category || ''),
+            String(image || ''),
+            String(description || ''),
+            Number(available ? 1 : 0),
+            String(id)
+          )
+          
+          if (result.changes === 0) {
+            throw new Error('Menu item not found')
+          }
+          
+          // Обновляем связи с модификаторами
+          // Сначала удаляем все существующие связи
+          db.prepare('DELETE FROM menu_item_modifiers WHERE menu_item_id = ?').run(String(id))
+          
+          // Затем добавляем новые связи
+          if (Array.isArray(modifierIds) && modifierIds.length > 0) {
+            const linkModifier = db.prepare(`
+              INSERT OR IGNORE INTO menu_item_modifiers (menu_item_id, modifier_id)
+              VALUES (?, ?)
+            `)
+            for (const modifierId of modifierIds) {
+              if (typeof modifierId === 'string' && modifierId.trim()) {
+                linkModifier.run(String(id), String(modifierId))
+              }
+            }
+          }
+        })
+        
+        tx()
+        
+        return new Response(JSON.stringify({ success: true, id }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      } catch (e: any) {
+        console.error('[API] updateMenuItem failed:', e)
+        return new Response(JSON.stringify({ success: false, error: e?.message || 'Failed to update menu item' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      }
+    }
+
+    // Удаление товара: { action: 'deleteMenuItem', id }
+    if (body && body.action === 'deleteMenuItem') {
+      try {
+        const { id } = body
+        
+        const tx = db.transaction(() => {
+          db.prepare('DELETE FROM menu_item_modifiers WHERE menu_item_id = ?').run(id)
+          db.prepare('DELETE FROM menu_items WHERE id = ?').run(id)
+        })
+        tx()
+        
+        return new Response(JSON.stringify({ success: true, id }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      } catch (e: any) {
+        console.error('[API] deleteMenuItem failed:', e)
+        return new Response(JSON.stringify({ success: false, error: e?.message || 'Failed to delete menu item' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      }
+    }
+
+    // Обновление модификатора: { action: 'updateModifier', ... }
+    if (body && body.action === 'updateModifier') {
+      try {
+        const { id, name_lt, name_uk, name, type, required, options } = body
+        console.log('[API] updateModifier called with:', { id, name_lt, name_uk, type, required, options })
+        
+        const updateModifier = db.prepare(`
+          UPDATE modifiers 
+          SET name_lt = ?, name_uk = ?, type = ?, required = ?
+          WHERE id = ?
+        `)
+        
+        const result = updateModifier.run(
+          name_lt || name || '',
+          name_uk || name || '',
+          type || 'addon',
+          required ? 1 : 0,
+          id
+        )
+        
+        console.log('[API] Modifier update result:', result)
+        
+        if (result.changes === 0) {
+          return new Response(JSON.stringify({ success: false, error: 'Modifier not found' }), {
+            status: 404,
+            headers: { 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Обновляем опции
+        if (Array.isArray(options)) {
+          const delOpts = db.prepare(`DELETE FROM modifier_options WHERE modifier_id = ?`)
+          const insOpt = db.prepare(`
+            INSERT INTO modifier_options (id, modifier_id, name_lt, name_uk, price, order_position)
+            VALUES (?, ?, ?, ?, ?, ?)
+          `)
+          
+          delOpts.run(id)
+          for (let i = 0; i < options.length; i++) {
+            const option = options[i]
+            const optId = option.id || `opt_${Date.now()}_${Math.floor(Math.random() * 10000)}`
+            insOpt.run(
+              optId, 
+              id, 
+              option.name_lt || option.name || '', 
+              option.name_uk || option.name || '', 
+              Number(option.price) || 0,
+              option.order !== undefined ? option.order : i
+            )
+          }
+        }
+        
+        return new Response(JSON.stringify({ success: true, id }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      } catch (e: any) {
+        console.error('[API] updateModifier failed:', e)
+        return new Response(JSON.stringify({ success: false, error: e?.message || 'Failed to update modifier' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      }
+    }
+
+    // Создание модификатора отдельно: { action: 'createModifier', id?, name_lt, name_uk, price?, type?, required? }
+    if (body && body.action === 'createModifier') {
+      try {
+        const mid: string = (typeof body.id === 'string' && body.id.trim()) ? body.id.trim() : `md_${Date.now()}_${Math.floor(Math.random() * 10000)}`
+        const name_lt: string = String(body.name_lt || body.name || '').trim()
+        const name_uk: string = String(body.name_uk || body.name || '').trim()
+        const group_name: string = String(body.group_name || '').trim()
+        const price: number = typeof body.price === 'number' ? body.price : 0
+        const typeRaw: string = String(body.type || 'addon')
+        const type: 'size' | 'addon' | 'sauce' = (['size', 'addon', 'sauce'].includes(typeRaw) ? typeRaw : 'addon') as any
+        const required: number = body.required ? 1 : 0
+        const options = Array.isArray(body.options) ? body.options : []
+
+        if (!name_lt || !name_uk) {
+          return new Response(JSON.stringify({ success: false, error: 'Invalid modifier data' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        }
+
+        // Добавляем колонку group_name если её нет
+        try {
+          db.exec(`ALTER TABLE modifiers ADD COLUMN group_name TEXT`)
+        } catch (e) {
+          // Колонка уже существует
+        }
+
+        const upsertModifier = db.prepare(`
+          INSERT OR REPLACE INTO modifiers (id, name_lt, name_uk, group_name, price, type, required)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `)
+        upsertModifier.run(mid, name_lt, name_uk, group_name, price, type, required)
+
+        // Создаем таблицу modifier_options если её нет
+        db.exec(`
+          CREATE TABLE IF NOT EXISTS modifier_options (
+            id TEXT PRIMARY KEY,
+            modifier_id TEXT NOT NULL,
+            name_lt TEXT NOT NULL,
+            name_uk TEXT NOT NULL,
+            price REAL DEFAULT 0,
+            order_position INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (modifier_id) REFERENCES modifiers(id) ON DELETE CASCADE
+          )
+        `)
+        
+        // Проверяем и добавляем недостающие колонки
+        try {
+          const columns = db.prepare("PRAGMA table_info(modifier_options)").all() as any[]
+          const hasOrderPosition = columns.some((c) => String(c.name) === 'order_position')
+          
+          if (!hasOrderPosition) {
+            db.exec(`ALTER TABLE modifier_options ADD COLUMN order_position INTEGER DEFAULT 0`)
+            console.log('[API] Добавлена колонка order_position в modifier_options')
+          }
+        } catch (e) {
+          console.warn('[API] Не удалось проверить/добавить колонки в modifier_options:', e)
+        }
+
+        // Перезапишем опции для группы
+        const delOpts = db.prepare(`DELETE FROM modifier_options WHERE modifier_id = ?`)
+        const insOpt = db.prepare(`
+          INSERT OR REPLACE INTO modifier_options (id, modifier_id, name_lt, name_uk, price, order_position)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `)
+        
+        delOpts.run(mid)
+        for (let i = 0; i < options.length; i++) {
+          const o = options[i]
+          const oid = (o && typeof o.id === 'string' && o.id.trim()) ? o.id.trim() : `mopt_${Date.now()}_${Math.floor(Math.random() * 10000)}`
+          const oname_lt = String(o?.name_lt || o?.name?.lt || o?.name || '').trim() || 'Be pavadinimo'
+          const oname_uk = String(o?.name_uk || o?.name?.uk || o?.name || '').trim() || 'Без названия'
+          const oprice = typeof o?.price === 'number' ? o.price : 0
+          const oorder = o?.order !== undefined ? o.order : i
+          
+          // Проверяем, есть ли колонка order_position
+          try {
+            insOpt.run(oid, mid, oname_lt, oname_uk, oprice, oorder)
+          } catch (err: any) {
+            if (err.message?.includes('order_position')) {
+              // Если колонки нет, вставляем без неё
+              const insOptSimple = db.prepare(`
+                INSERT OR REPLACE INTO modifier_options (id, modifier_id, name_lt, name_uk, price)
+                VALUES (?, ?, ?, ?, ?)
+              `)
+              insOptSimple.run(oid, mid, oname_lt, oname_uk, oprice)
+            } else {
+              throw err
+            }
+          }
+        }
+
+        return new Response(JSON.stringify({ success: true, id: mid }), {
+          status: 201,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      } catch (e: any) {
+        console.error('[API] createModifier failed:', e)
+        return new Response(JSON.stringify({ success: false, error: e?.message || 'Failed to create modifier' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+    }
+
+    // Обновление старых модификаторов без group_name
+    if (body && body.action === 'updateOldModifiers') {
+      // Добавляем колонку group_name если её нет
+      try {
+        db.exec(`ALTER TABLE modifiers ADD COLUMN group_name TEXT`)
+      } catch (e) {
+        // Колонка уже существует
+      }
+
+      // Обновляем модификаторы без group_name
+      const updateStmt = db.prepare(`
+        UPDATE modifiers 
+        SET group_name = CASE 
+          WHEN type = 'addon' THEN 'Добавки'
+          WHEN type = 'sauce' THEN 'Соусы'
+          WHEN type = 'size' THEN 'Размеры'
+          ELSE 'Другое'
+        END
+        WHERE group_name IS NULL OR group_name = ''
+      `)
+      
+      const result = updateStmt.run()
+      
+      return new Response(JSON.stringify({ 
+        success: true, 
+        updated: result.changes 
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    // Вариант 2: одиночное создание блюда
+    const { id, name_lt, name_uk, price, category, image, modifiers, modifierIds } = body || {}
+    if (!name_lt || !name_uk || typeof price !== 'number' || !category) {
+      return new Response(JSON.stringify({ success: false, error: 'Invalid menu data' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const newId: string = (typeof id === 'string' && id.trim()) ? id.trim() : `mi_${Date.now()}_${Math.floor(Math.random() * 10000)}`
+
+    const insertMenuItem = db.prepare(`
+      INSERT INTO menu_items (id, name_lt, name_uk, price, category, image)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `)
+
+    const tx = db.transaction(() => {
+      // Убедимся, что связующая таблица есть
+      ensureMenuItemModifiersTable(db)
+      insertMenuItem.run(newId, name_lt, name_uk, Number(price) || 0, category, image || null)
+
+      if (Array.isArray(modifiers) && modifiers.length > 0) {
+        const upsertModifier = db.prepare(`
+          INSERT OR IGNORE INTO modifiers (id, name_lt, name_uk, price, type, required)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `)
+        const linkModifier = db.prepare(`
+          INSERT OR IGNORE INTO menu_item_modifiers (menu_item_id, modifier_id)
+          VALUES (?, ?)
+        `)
+
+        for (const m of modifiers) {
+          const mid = m?.id || `md_${Date.now()}_${Math.floor(Math.random() * 10000)}`
+          const m_name_lt = m?.name_lt || m?.name?.lt || m?.name_uk || 'Be pavadinimo'
+          const m_name_uk = m?.name_uk || m?.name?.uk || m?.name_lt || 'Без названия'
+          const m_price = typeof m?.price === 'number' ? m.price : 0
+          const m_type = m?.type || 'addon'
+          const m_required = Boolean(m?.required)
+
+          upsertModifier.run(mid, m_name_lt, m_name_uk, m_price, m_type, m_required ? 1 : 0)
+          linkModifier.run(newId, mid)
+        }
+      } else if (Array.isArray(modifierIds) && modifierIds.length > 0) {
+        // Связываем уже существующие модификаторы по ID
+        const linkModifier = db.prepare(`
+          INSERT OR IGNORE INTO menu_item_modifiers (menu_item_id, modifier_id)
+          VALUES (?, ?)
+        `)
+        for (const mid of modifierIds) {
+          if (typeof mid === 'string' && mid.trim()) {
+            linkModifier.run(newId, String(mid))
+          }
+        }
+      }
+    })
+
+    tx()
+
+    // Invalidate cache by sending a message to clients
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        const channel = new BroadcastChannel('menu-updates')
+        channel.postMessage({ type: 'menu-updated' })
+        channel.close()
+      } catch (e) {
+        console.warn('Could not notify clients of menu update:', e)
+      }
+    }
+
+    return new Response(JSON.stringify({ success: true, id: newId }), {
+      status: 201,
+      headers: { 
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache'
+      },
+    })
+  } catch (error) {
+    console.error('[API] Ошибка POST /api/menu:', error)
+    return new Response(JSON.stringify({ success: false, error: 'Failed to save menu' }), {
+      status: 500,
+      headers: { 
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache'
+      },
+    })
+}
